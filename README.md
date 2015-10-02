@@ -2,4 +2,5 @@
 learning Theano
 
 REFERENCES:
-  www.deeplearning.net/tutorial/deeplearning.pdf
+
+    www.deeplearning.net/tutorial/deeplearning.pdf
