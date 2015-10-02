@@ -1,0 +1,217 @@
+# -*- coding: utf-8 -*-
+
+/*
+    Name: notes.txt
+    Author: jalFaizy 
+    Timestamp: Wed Sep 23 16:10:53 IST 2015
+    Description: Learning Theano
+*/
+
+* Theano Intro - 
+    * Theano is a Python library that lets you define, optimize, and evaluate mathematical expressions, especially ones with multi-dimensional arrays (numpy.ndarray).
+    * Theano combines aspects of a computer algebra system (CAS) with aspects of an optimizing compiler
+    * Theano is a Python library and optimizing compiler for manipulating and evaluating expressions, especially matrix-valued ones.
+    * Advantages of Theano -
+        * execution speed optimizations
+        * symbolic differentiation
+        * stability optimizations
+    * You, the user - not the system architecture - have to choose whether your program will use 32- or 64-bit integers ( i prefix vs. l prefix ) and floats ( f prefix vs. d prefix ).
+    * #TODO try graphs
+
+* Theano practice - 
+
+>>> import theano
+WARNING (theano.configdefaults): g++ not detected ! Theano will be unable to execute optimized C-implementations (for both CPU and GPU) and will default to Python implementations. Performance will be severely degraded. To remove this warning, set Theano flags cxx to an empty string.
+>>> from theano import tensor
+>>> 
+# declare two symbolic floating-point scalars
+>>> a = tensor.dscalar()
+>>> b = tensor.dscalar()
+>>> 
+# create simple expressions
+>>> c = a + b
+>>> 
+# convert the expression into a callable object that takes (a, b) values as input and computes a value for c
+>>> f = theano.function([a, b], c)
+# bind values of 'a' and 'b' and evaluate 'c'
+>>> assert 4.0 == f(1.5, 2.5)
+>>> f(1.5, 2.5)
+array(4.0)
+>>> assert 5.0 == f(1.5, 2.5)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AssertionError
+>>> 
+
+# test theano
+>>> theano.test()
+
+# from the start again!
+>>> import theano.tensor as T
+>>> 
+>>> x = T.dscalar('x')
+>>> y = T.dscalar('y')
+>>> 
+>>> z = x + y
+>>> f = function([x, y], z)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'function' is not defined
+>>> from theano import function
+>>> f = function([x, y], z)
+>>> f(2, 3)
+array(5.0)
+>>> f(16.3, 12.1)
+array(28.4)
+>>> type(x)
+<class 'theano.tensor.var.TensorVariable'>
+>>> x.type()
+<TensorType(float64, scalar)>
+>>> z
+Elemwise{add,no_inplace}.0
+>>> from theano import pp
+>>> pp(z)
+'(x + y)'
+
+NEXT UP!! ADDING MATRICES, pg 33
+
+// Timestamp: Wed Sep 23 22:23:34 IST 2015
+>>> x = T.dmatrix('x')
+>>> y = T.dmatrix('y')
+>>> z = x + y
+>>> f = function([x, y], z)
+>>> f([ [1, 2], [3, 4] ], [ [10, 20], [30, 40] ])
+array([[ 11.,  22.],
+       [ 33.,  44.]])
+>>> import numpy
+>>> f(numpy.array([ [1, 2], [3, 4] ]), numpy.array([ [10, 20], [30, 40] ]))
+array([[ 11.,  22.],
+       [ 33.,  44.]])
+       
+* logistic function
+    * s(x) = 1 / ( 1 + e^(-x) ) // sigmoid
+    * s(x) = ( 1 + tanh(x/2) ) / 2 // tanh
+
+>>> x = T.dmatrix('x')
+>>> s = 1 / (1 + T.exp(-x))
+>>> logistic = function([x], s)
+>>> logistic([[0, 1], [-1, 2]])
+array([[ 0.5       ,  0.73105858],
+       [ 0.26894142,  0.88079708]])
+
+NEXT UP!! COMPUTING MORE THAN ONE OUTPUT, pg 36
+
+// Timestamp: Thu Sep 24 23:01:49 IST 2015
+>>> a, b = T.dmatrices('a', 'b')
+>>> diff = a - b
+>>> abs_diff = abs(diff)
+>>> diff_squared = diff ** 2
+>>> f = function([a, b], [diff, abs_diff, diff_squared])
+>>> f([[1, 1], [1, 1]], [[0, 1], [2, 3]])
+[array([[ 1.,  0.],
+       [-1., -2.]]), array([[ 1.,  0.],
+       [ 1.,  2.]]), array([[ 1.,  0.],
+       [ 1.,  4.]])]
+# Setting default value for an argument
+>>> x, y = T.dscalars('x', 'y')
+>>> z = x + y
+>>> f = function([x, Param(y, default = 1)], z)
+>>> f(33)
+array(34.0)
+>>> f(33, 2)
+array(35.0)
+>>> x, y, w = T.dscalars('x', 'y', 'w')
+>>> z = (x + y) + w
+>>> f = function([x, Param(y, default = 1), Param(w, default = 2, name = 'w_by_name')], z)
+>>> f(33)
+array(36.0)
+>>> f(33, 2)
+array(37.0)
+>>> f(33, 0,1 )
+array(34.0)
+>>> f(33,w_by_name = 1)
+array(35.0)
+>>> f(33,w_by_name = 1, y=0)
+array(34.0)
+# Using shared variables
+>>> from theano import shared
+>>> state = shared(0)
+>>> inc = T.iscalar('inc')
+>>> accumulator = function([inc], state, updates = [(state, state + inc)])
+>>> state.get_value()
+array(0)
+>>> accumulator
+<theano.compile.function_module.Function object at 0x7fea9da1f490>
+>>> accumulator(1)
+array(0)
+>>> state.get_value()
+array(1)
+>>> accumulator(300)
+array(1)
+>>> state.get_value()
+array(301)
+>>> state.set_value(-1)
+>>> accumulator(3)
+array(-1)
+>>> state.get_value()
+array(2)
+>>> decrementor = function([inc], state, updates = [(state, state-inc)])
+>>> decrementor(2)
+array(2)
+>>> state.get_value()
+array(0)
+>>> 
+>>> fn_of_state = state * 2 + inc
+>>> foo = T.scalar(dtype = state.dtype)
+>>> skip_shared = function([inc, foo], fn_of_state, givens = [(state, foo)])
+>>> skip_shared(1, 3)
+array(7)
+>>> state.get_value
+<bound method ScalarSharedVariable.get_value of <TensorType(int64, scalar)>>
+>>> state.get_value()
+array(0)
+#Using Random Numbers
+from theano.tensor.shared_randomstreams import RandomStreams
+>>> srng = RandomStreams(seed = 234)
+>>> rv_u = srng.uniform((2, 2))
+>>> rv_n = srng.normal((2, 2))
+>>> f = function([], rv_u)
+>>> g = function([], rv_n, no_default_updates = True)
+>>> nearly_zeros = function([], rv_u + rv_u - 2 * rv_u)
+>>> f_val0 = f()
+>>> f_val1 = f()
+>>> g_val0 = g()
+>>> g_val1 = g()
+>>> rng_val = rv_u.rng.get_value(borrow = True)
+>>> rng_val.seed(89234)
+>>> rv_u.rng.set_value(rng_val, borrow = True)
+>>> srng.seed(902340)
+
+# Logistic Regression - @lreg.py
+
+NEXT UP!! GRAPH STRUCTURES, pg 43
+
+* Theano exercise - 
+
+// Timestamp: Wed Sep 23 22:23:34 IST 2015
+>>> a = theano.tensor.vector() # declare variables
+>>> out = a + a ** 10 # build symbolic expression
+>>> f = theano.function([a], out) # compile function
+>>> f([0, 1, 2])
+array([    0.,     2.,  1026.])
+>>> 
+Q. Modify and execute this code to compute this expression: a ** 2 + b ** 2 + 2*a*b
+>>>
+>>> b = theano.tensor.vector()
+>>> a = theano.tensor.vector()
+>>> out = a ** 2 + b ** 2 + 2*a*b
+>>> f = theano.function([a, b], out)
+>>> f([1], [1])
+array([ 4.])
+>>> f([1], [2])
+array([ 9.])
+>>> f([0.33], [0.33])
+array([ 0.4356])
+---------------------------------
+
+#TODO exercise pg 54
